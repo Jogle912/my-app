@@ -22,7 +22,8 @@
     "electron-squirrel-startup": "^1.0.0",
     "events": "^3.3.0",
     "global": "^4.4.0",
-    "openai": "^3.2.1"
+    "openai": "^3.2.1",
+    "path-browserify": "^1.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.21.8",

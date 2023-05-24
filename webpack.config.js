@@ -30,8 +30,11 @@ module.exports = {
     extensions: ['*', '.js', '.jsx'],
     fallback: {
        "global": false,
-       "events": require.resolve("events/") 
+       "events": require.resolve("events/"), 
       },
+  },
+  node: {
+    fs: 'empty', // Add this line
   },
   devServer: {
     static: {
@@ -49,6 +52,6 @@ module.exports = {
       patterns: [
         { from: 'src/index.css', to: '' },
       ],
-    }),
+    }),  
   ],
 };
