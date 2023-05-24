@@ -1,41 +1,28 @@
 require('dotenv').config();
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const url = require('url');
-const { ipcMain } = require('electron');
-
-if (require('electron-squirrel-startup')) {
-  app.quit();
-}
+const handlers = require('./ipcHandlers'); // Assuming this is the correct path to your ipcHandlers.js
 
 let mainWindow;
 
-const createWindow = () => {
+function createWindow () {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
+      enableRemoteModule: false,
+      preload: path.join(__dirname, 'preload.js') // Assuming you have a preload script
     },
   });
 
   mainWindow.loadURL('http://localhost:8080');
 
   mainWindow.webContents.openDevTools();
-};
+}
 
-app.whenReady().then(() => {
-  createWindow();
-
-  ipcMain.on('request-api-keys', (event) => {
-    event.sender.send('response-api-keys', {
-      openaiApiKey: process.env.OPENAI_API_KEY,
-      canvasApiKey: process.env.CANVAS_API_KEY,
-    });
-  });
-});
+app.on('ready', createWindow);
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -44,7 +31,14 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (mainWindow === null) {
     createWindow();
   }
 });
+
+ipcMain.on('request-api-keys', (event) => {
+  handlers.handleRequestApiKeys(event, { openaiApiKey: process.env.OPENAI_API_KEY });
+  event.reply('api-keys-loaded');
+});
+
+ipcMain.handle('test-connection', handlers.handleTestConnection);

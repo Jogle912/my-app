@@ -27,14 +27,13 @@ module.exports = {
     ],
   },
   resolve: {
-    extensions: ['*', '.js', '.jsx'],
+    extensions: ['.*', '.js', '.jsx'],
     fallback: {
+       "fs": false,
        "global": false,
        "events": require.resolve("events/"), 
+       "path": require.resolve("path-browserify")
       },
-  },
-  node: {
-    fs: 'empty', // Add this line
   },
   devServer: {
     static: {
