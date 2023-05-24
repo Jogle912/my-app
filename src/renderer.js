@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createRoot } from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import generateText, { testConnection } from './openai';
 
 function App() {

@@ -1,21 +1,35 @@
-const { Configuration, OpenAIApi } = require("openai");
+const { ipcRenderer } = require('electron');
+const { Configuration, OpenAIApi } = require('openai');
 
-const configuration = new Configuration({
-  apiKey: "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",
+let openai;
+
+ipcRenderer.send('request-api-keys');
+
+ipcRenderer.on('response-api-keys', (event, keys) => {
+  const configuration = new Configuration({
+    apiKey: keys.openaiApiKey,
+  });
+
+  openai = new OpenAIApi(configuration);
+
+  // You can now use `openai` to make API calls...
 });
 
-const openai = new OpenAIApi(configuration);
-
 async function testConnection() {
-    const completion = await openai.createCompletion({
-        model: "text-davinci-003",
-        prompt: "Hello world",
-    });
-    console.log(completion.data.choices[0].text);
+  if (!openai) {
+    console.error("OpenAI API not initialized");
+    return;
+  }
+  
+  const completion = await openai.createCompletion({
+    model: 'text-davinci-003',
+    prompt: 'Hello world',
+  });
+
+  console.log(completion.data.choices[0].text);
 }
 
 module.exports = {
-    testConnection,
-    openai
-}
-
+  testConnection,
+  openai
+};
