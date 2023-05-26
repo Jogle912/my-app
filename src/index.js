@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const handlers = require('./ipcHandlers'); // Assuming this is the correct path to your ipcHandlers.js
+const { handleRequestApiKeys, handleTestConnection } = require('./ipcHandlers'); // Assuming this is the correct path to your ipcHandlers.js
 
 let mainWindow;
 
@@ -36,9 +36,11 @@ app.on('activate', () => {
   }
 });
 
-ipcMain.on('request-api-keys', (event) => {
-  handlers.handleRequestApiKeys(event, { openaiApiKey: process.env.OPENAI_API_KEY });
-  event.reply('api-keys-loaded');
+ipcMain.on('request-api-keys', (event, keys) => {
+  handleRequestApiKeys(event, keys);
 });
 
-ipcMain.handle('test-connection', handlers.handleTestConnection);
+ipcMain.on('test-connection', async (event) => {
+  const result = await handleTestConnection();
+  event.reply('test-connection-result', result);
+});
