@@ -1,8 +1,8 @@
 const openai = require('./openai');
 
-function handleRequestApiKeys(event, keys) {
-  openai.initialize(keys.openaiApiKey);
-  event.reply('api-keys-loaded');
+function handleRequestApiKeys(event, keys) {  
+  openai.initialize(keys.openaiApiKey);  
+  event.reply('api-keys-loaded');  
 }
 
 async function handleTestConnection() {

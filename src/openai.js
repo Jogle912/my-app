@@ -4,7 +4,7 @@ let openai;
 
 function initialize(apiKey) {
   const configuration = new Configuration({
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: apiKey,
   });
 
   openai = new OpenAIApi(configuration);
