@@ -11,7 +11,8 @@ hardcoded Canvas token. We are building StudyPilot, a paid, student-facing study
 1. **Replace the prototype entirely.** The Electron code was deleted in a normal commit; git history keeps it.
    The Canvas token that was committed in `src/canvasAPI.js` must be revoked by its owner. Deleting the
    file doesn't remove it from history.
-2. **Responsive web app (PWA later), not Electron.** Next.js (App Router) + TypeScript + Tailwind.
+2. **Native phone app for Android and iPhone (Expo / React Native)**, superseding the earlier
+   "responsive web app" decision at the owner's request. Next.js remains as the backend API.
 3. **Modular monolith.** One Next.js app plus (from M3) one worker process sharing the codebase and Postgres.
    pg-boss for jobs, so there's no Redis.
 4. **Scheduling engine is pure TypeScript** in `src/scheduler/`. It has no I/O, uses an injected `Clock`,
@@ -33,6 +34,9 @@ hardcoded Canvas token. We are building StudyPilot, a paid, student-facing study
 11. **Authentication: Better Auth** (email + password first; Google OAuth and magic links later) instead of
     Auth.js. Auth.js v5 never left beta, and its maintainers now steer users to Better Auth. App
     sessions stay fully separate from Canvas OAuth.
+
+12. **Monorepo with npm workspaces:** `apps/server`, `apps/mobile`, `packages/scheduler`. The scheduler
+    ships as TypeScript source and is shared unchanged by the server and the phone, which plans on-device.
 
 ## Scheduler algorithm as implemented in M1
 - Work items are split into near-equal units of at most the preferred session length (5-minute grid).

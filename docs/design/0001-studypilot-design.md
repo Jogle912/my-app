@@ -867,3 +867,21 @@ StudyPilot has three AI capabilities: the **AI study planner**, the **AI calenda
 AI output is always validated against a schema and shown to the student before it changes their plan.
 A model or network failure degrades to rule-based defaults (estimates by assignment type). It never
 blocks planning.
+
+## 15. Platform decision: native app for Android and iPhone (2026-11-22)
+
+StudyPilot is a **phone app**, not a website. It's built with **Expo (React Native)**, so one TypeScript
+codebase produces both the Android and the iPhone app.
+
+- `apps/mobile`: Expo Router app (sign-in, Plan, Courses, My week, Account, course and assignment detail).
+  The session is stored in the phone's secure storage (Keychain / Keystore).
+- `packages/scheduler`: the engine **runs on the phone**. The app downloads the student's records
+  (`GET /api/v1/plan-input`) and plans locally, so the plan stays fast and can work offline later.
+- `apps/server`: the backend. It holds what must never live in an app binary: Canvas OAuth tokens, the AI
+  provider key, accounts and sync. The temporary web pages are removed once the app covers them.
+- Distribution: EAS Build. Internal `.apk` for testing on Android, TestFlight for iPhone, then the
+  Play Store and App Store (Google's one-time developer fee; Apple's yearly developer program).
+- Push notifications ("Calc review in 10 minutes") are planned with the calendar milestone.
+
+Roadmap update: **M3 = mobile app foundation (done)**. Next: mock Canvas sync (M4), the AI study planner
+(M5), the calendar with session tracking and push reminders (M6), and the AI calendar manager (M7).
