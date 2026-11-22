@@ -1,6 +1,6 @@
 # StudyPilot — Design Document v0.1
 
-Status: **Draft, awaiting approval**  ·  Date: 2026-11-22  ·  Audience: college students (initial)
+Status: **Approved with decisions recorded in §13 and ADR-0001**  ·  Date: 2026-11-22  ·  Audience: college students (initial)
 
 This is the design-first deliverable. Nothing in it has been built yet. The sections follow
 the order requested in the master prompt. Assumptions are marked **[A]** and decisions that
@@ -818,3 +818,35 @@ The first small, testable deliverable:
 | Q4 | Hosting target? | **Docker Compose locally now.** Later: a managed Postgres plus a container host that runs the web app and worker (e.g., Fly.io, Railway, Render). Decide before M7. |
 | Q5 | Default LLM provider for Phase 2? | **Anthropic Claude** behind the `LLMProvider` interface, with a fake provider for tests. Revisit before M9. |
 | Q6 | Should the tutor ever reveal a final answer, e.g., for ungraded practice problems the student generated themselves? | **Yes, only for our own AI-generated practice items after the attempt is submitted. Never for imported assignments.** |
+
+---
+
+## 13. Decisions (2026-11-22)
+
+| # | Decision |
+|---|---|
+| Q1 | Old Electron code deleted (git history keeps it). |
+| Q2 | No institutional contact. A student offered their personal Canvas token. **Declined:** see "Canvas access for development" below. Development uses the developer's own account plus mock data. |
+| Q3 | **Sold directly to students.** This adds Stripe billing, terms of service and privacy policy, and per-user AI cost limits to the roadmap (before public launch, after M8). |
+| Q4 | **Render** for launch: web service + background worker + managed Postgres (pgvector). Alternatives considered: Vercel + Neon + a separate worker host (more vendors and moving parts), and AWS (more control, much more operations work). |
+| Q5 | Anthropic Claude behind `LLMProvider`. |
+| Q6 | Final answers only for StudyPilot's own practice items after submission. |
+
+### Canvas access for development
+A Canvas personal access token carries the **full permissions of its owner**. Scopes can't be limited,
+so it allows submitting work, reading grades and sending messages as them. Using another student's token
+would mean:
+- holding a third party's education records
+- likely breaching the institution's acceptable-use policy
+- depending on an account we don't control
+
+It's also the opposite of the security story we'll tell students and schools.
+
+Instead:
+1. Use the developer's **own** Canvas account. Put a token in `.env.local` as `CANVAS_DEV_PERSONAL_TOKEN`,
+   which is only read by a dev-only importer that makes GET requests exclusively.
+2. To test with the volunteer's data, they run StudyPilot locally on **their own machine** with their own
+   token, or they use the ICS calendar-feed import once it exists (M7). In both cases the credential
+   stays with them.
+3. Capture **anonymised** API response shapes (no names or content) as test fixtures for the mock Canvas
+   provider.
