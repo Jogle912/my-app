@@ -1,0 +1,303 @@
+// StudyPilot database schema (Phase 1 subset). See docs/design/0001-studypilot-design.md §4.
+//
+// Ownership rule: every student-owned row has `userId`. Child rows reference their parent through
+// (parentId, userId) composite keys, so the database itself rejects linking one student's record
+// to another student's course or assignment.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Identity (Better Auth tables) ─────────────────────────
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  preferences       StudentPreferences?
+  availabilityRules AvailabilityRule[]
+  courses           Course[]
+  classMeetings     ClassMeeting[]
+  assignments       Assignment[]
+  milestones        AssignmentMilestone[]
+  calendarEvents    CalendarEvent[]
+  auditLogs         AuditLog[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+/// Login provider accounts (password, Google, ...). NOT Canvas: Canvas connections are separate.
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ───────────────────────── Preferences & availability ─────────────────────────
+
+model StudentPreferences {
+  userId                      String   @id
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timeZone                    String   @default("America/Chicago")
+  sleepStart                  String   @default("23:30")
+  sleepEnd                    String   @default("07:30")
+  maxStudyMinutesPerDay       Int      @default(240)
+  preferredSessionMinutes     Int      @default(50)
+  minSessionMinutes           Int      @default(25)
+  breakMinutes                Int      @default(10)
+  deadlineBufferHours         Int      @default(24)
+  energyMorning               Int      @default(2)
+  energyAfternoon             Int      @default(2)
+  energyEvening               Int      @default(2)
+  maxSameCourseSessionsPerDay Int      @default(2)
+  aiProcessingConsent         Boolean  @default(false)
+  updatedAt                   DateTime @updatedAt
+
+  @@map("student_preferences")
+}
+
+enum AvailabilityKind {
+  AVAILABLE
+  BLOCKED
+}
+
+/// Weekly wall-clock rule in the student's time zone. `days` uses ISO weekdays (1 = Monday … 7 = Sunday).
+model AvailabilityRule {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      AvailabilityKind
+  label     String?
+  days      Int[]
+  startTime String
+  endTime   String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+  @@map("availability_rule")
+}
+
+// ───────────────────────── Academic records ─────────────────────────
+
+/// Where a record came from. Imported rows are upserted by (userId, source, externalId).
+enum Source {
+  MANUAL
+  CANVAS
+  SYLLABUS
+}
+
+model Course {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source     Source   @default(MANUAL)
+  externalId String?
+  name       String
+  code       String?
+  term       String?
+  htmlUrl    String?
+  difficulty Int      @default(3)
+  color      String?
+  archived   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  meetings    ClassMeeting[]
+  assignments Assignment[]
+
+  @@unique([id, userId])
+  @@unique([userId, source, externalId])
+  @@index([userId])
+  @@map("course")
+}
+
+model ClassMeeting {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation(fields: [courseId, userId], references: [id, userId], onDelete: Cascade)
+  days      Int[]
+  startTime String
+  endTime   String
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([courseId])
+  @@map("class_meeting")
+}
+
+enum AssignmentKind {
+  HOMEWORK
+  PROJECT
+  READING
+  QUIZ
+  EXAM
+  DISCUSSION
+  OTHER
+}
+
+enum SubmissionState {
+  NONE
+  SUBMITTED
+  GRADED
+  EXCUSED
+  MISSING
+}
+
+model Assignment {
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId        String
+  course          Course          @relation(fields: [courseId, userId], references: [id, userId], onDelete: Cascade)
+  source          Source          @default(MANUAL)
+  externalId      String?
+  title           String
+  description     String?
+  kind            AssignmentKind  @default(HOMEWORK)
+  /// Effective due date for this student (UTC instant). For exams: the exam start.
+  dueAt           DateTime
+  unlockAt        DateTime?
+  pointsPossible  Float?
+  htmlUrl         String?
+  submissionState SubmissionState @default(NONE)
+  removedUpstream Boolean         @default(false)
+  rawHash         String?
+
+  // Student-owned overrides. Sync never writes these.
+  estimatedMinutes Int?
+  completedMinutes Int     @default(0)
+  priority         Int     @default(3)
+  personalDueAt    DateTime?
+  ignored          Boolean @default(false)
+  studentDone      Boolean @default(false)
+
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  milestones AssignmentMilestone[]
+
+  @@unique([id, userId])
+  @@unique([userId, source, externalId])
+  @@index([userId, dueAt])
+  @@index([courseId])
+  @@map("assignment")
+}
+
+enum MilestoneOrigin {
+  STUDENT
+  RULE
+  AI
+}
+
+model AssignmentMilestone {
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignmentId     String
+  assignment       Assignment      @relation(fields: [assignmentId, userId], references: [id, userId], onDelete: Cascade)
+  order            Int
+  title            String
+  estimatedMinutes Int
+  completedMinutes Int             @default(0)
+  doneAt           DateTime?
+  origin           MilestoneOrigin @default(STUDENT)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([assignmentId, order])
+  @@map("assignment_milestone")
+}
+
+/// One-off busy time (appointments, trips) or imported Canvas calendar events.
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source      Source   @default(MANUAL)
+  externalId  String?
+  title       String
+  startAt     DateTime
+  endAt       DateTime
+  blocksStudy Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, source, externalId])
+  @@index([userId, startAt])
+  @@map("calendar_event")
+}
+
+// ───────────────────────── Audit ─────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  /// Nullable so audit history survives account deletion (the purge job also scrubs `meta`).
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actor     String
+  action    String
+  target    String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("audit_log")
+}

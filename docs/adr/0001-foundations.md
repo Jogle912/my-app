@@ -25,9 +25,14 @@ hardcoded Canvas token. We are building StudyPilot, a paid, student-facing study
    uses per-institution OAuth where approved, plus the Canvas calendar feed (ICS) and manual entry.
 8. **Hosting target: Render** (web service + background worker + managed Postgres with pgvector) for launch.
    Re-evaluate at scale. Docker Compose for local development.
-9. **LLM provider: Anthropic Claude** behind an `LLMProvider` interface (Phase 2), with a fake provider for tests.
+9. **LLM provider: Anthropic Claude** behind an `LLMProvider` interface, with a fake provider for tests. AI is
+   used for the study planner (breakdowns, estimates, session goals), the calendar manager (chat through
+   engine tools) and the tutor. Session placement itself stays deterministic (design doc §14).
 10. **Tutor answer policy.** Final answers are shown only for StudyPilot's own AI-generated practice items
     after the student submits; never for imported coursework.
+11. **Authentication: Better Auth** (email + password first; Google OAuth and magic links later) instead of
+    Auth.js. Auth.js v5 never left beta, and its maintainers now steer users to Better Auth. App
+    sessions stay fully separate from Canvas OAuth.
 
 ## Scheduler algorithm as implemented in M1
 - Work items are split into near-equal units of at most the preferred session length (5-minute grid).

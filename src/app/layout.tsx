@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
+import { UserNav } from "@/components/UserNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,9 +21,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/" className="text-lg font-semibold tracking-tight">
               StudyPilot
             </Link>
-            <Link href="/demo" className="rounded-md px-3 py-1.5 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800">
-              Demo plan
-            </Link>
+            <Suspense fallback={null}>
+              <UserNav />
+            </Suspense>
           </nav>
         </header>
         <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">

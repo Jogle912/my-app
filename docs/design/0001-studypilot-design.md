@@ -724,14 +724,15 @@ Each milestone is a vertical slice that is runnable locally with mock data and h
 |---|---|---|
 | **M0** | Reset & scaffold | Old Electron code removed. Next.js + TS + Tailwind + Prisma + Vitest + Playwright set up. Docker Compose Postgres. `.env.example`. CI runs lint, typecheck, and tests. `npm run dev` serves an app shell. ADR-0001 committed. |
 | **M1** | Scheduling engine core (pure) | `plan()` handles decomposition, capacity, EDF feasibility, greedy placement, locked sessions, buffers, and daily max. Shortfalls are reported. Simulated clock. Tests pass for: two near-simultaneous deadlines, no available time, locked event, DST weeks, determinism, and property invariants. No UI or DB yet. |
-| **M2** | Auth + data model + manual entry | Sign-in works (dev credentials plus magic link to a local mail catcher). Migrations for Phase 1 tables. CRUD for courses, meetings, assignments, and availability via scoped repositories. Cross-user access tests fail closed. |
+| **M2** | Auth + data model + manual entry | Email + password sign-in (Better Auth). Migrations for the Phase 1 tables. Create, edit and delete courses, class meetings, assignments, milestones, availability and preferences through ownership-scoped repositories. A plan page runs the engine on the student's own data. Cross-user access tests fail closed. |
 | **M3** | Mock Canvas + sync | `CanvasProvider` interface with a mock implementation and scenario fixtures. Idempotent sync with change history. Tests: repeated sync makes no duplicates, a new assignment after the initial sync, a moved deadline, a removed assignment, an already-submitted assignment, and student overrides surviving sync. |
-| **M4** | Calendar + plan persistence | Generate and persist a `ScheduleRevision`. Weekly and monthly calendar views (FullCalendar). Lock/unlock and drag a session (which locks it). A diff banner explains changes. |
-| **M5** | Session lifecycle + rescheduling | Complete, partial, and skip. Unconfirmed handling with the simulated clock. Repair-mode reschedule. Tests: multiple missed sessions, insufficient capacity reported, churn under X%. |
-| **M6** | Dashboard | Today / Due soon / Behind / Readiness (heuristic) / "30 minutes" card. Playwright E2E: onboarding → plan → miss → recover. |
-| **M7** | Real Canvas OAuth adapter + ICS import | OAuth flow configured through env per institution. Refresh, revoke, and disconnect. Rate-limit-aware client. Tests with an HTTP mock: pagination, a 403 throttle with backoff, an expired token being refreshed, a revoked token setting `NEEDS_REAUTH`. ICS import path. |
-| **M8** | Onboarding + settings + privacy | Onboarding wizard, connected accounts, data export, account deletion job, audit log. |
-| *Phase 2* | M9 LLM abstraction and consent · M10 resource ingestion and retrieval · M11 tutor policy and tutor UI with adversarial tests · M12 quiz generation and attempts · M13 mastery tracking | |
+| **M4** | **AI study planner** (first AI feature) | `LLMProvider` interface (Claude, plus a fake provider for tests). AI breaks an assignment into steps from its description, estimates minutes per step, and writes session goals. The student reviews and accepts or edits the result before it reaches the scheduler. Results are cached per assignment version. AI consent toggle and per-user usage metering. Tests use the fake provider, plus schema validation of AI output. |
+| **M5** | Calendar + plan persistence + session lifecycle | Persist `ScheduleRevision` and sessions. Weekly and monthly calendar (FullCalendar). Lock, drag and skip sessions; mark them complete or partial; handle unconfirmed sessions. Repair-mode re-planning with a "what changed" banner. |
+| **M6** | **AI calendar manager** | A chat assistant that changes the plan only through engine tools (`addBusyBlock`, `setEstimate`, `lockSession`, `skipSession`, `replan`, `explainSession`). Every change is previewed and confirmed. The AI never writes times directly. Tests: tool calls are validated, impossible requests get honest answers, and the tool layer enforces ownership. |
+| **M7** | Dashboard + weekly AI check-in | Today / Due soon / Behind / Readiness / "30 minutes" card. A weekly AI review that explains tradeoffs and proposes changes for the student to accept. |
+| **M8** | Real Canvas OAuth adapter + ICS import | OAuth flow configured through env per institution. Refresh, revoke, and disconnect. Rate-limit-aware client. Tests: pagination, a 403 throttle with backoff, an expired token being refreshed, a revoked token setting `NEEDS_REAUTH`. ICS import path. |
+| **M9** | Onboarding, settings, privacy, billing | Onboarding wizard, connected accounts, data export, account deletion job, audit log views, Stripe subscription, AI usage limits per plan. |
+| *Phase 2* | AI tutor (policy layer + adversarial tests) · learning material retrieval · practice quizzes · mastery tracking feeding the planner's review allocation | |
 | *Phase 3* | Cram strategy · mastery-adaptive planning · grade goals · forecasting · more LMS integrations | |
 
 ---
@@ -850,3 +851,19 @@ Instead:
    stays with them.
 3. Capture **anonymised** API response shapes (no names or content) as test fixtures for the mock Canvas
    provider.
+
+## 14. AI in planning (decision 2026-11-22)
+
+StudyPilot has three AI capabilities: the **AI study planner**, the **AI calendar manager** and the
+**AI tutor**. The rule: **AI decides *what* to study and *how much*; the deterministic engine decides
+*when*.**
+
+| Concern | Owner | Why |
+|---|---|---|
+| Understanding assignments, breaking them into steps, estimating effort, session goals, exam coverage | AI (Claude) | Needs reading comprehension and judgment. It runs once per new or changed assignment, and the result is cached. |
+| Turning requests like "I have a shift Thursday 4–9" into structured changes; explaining the plan; weekly coaching | AI via engine tools | Natural language in and natural language out. Changes go through validated tool calls and are previewed. |
+| Placing sessions in time, constraint checking, re-planning on every sync or missed session | Engine | Must be correct (no overlaps, nothing after a deadline, honest shortfalls), fast (~25 ms) and cheap. It runs many times a day per student. |
+
+AI output is always validated against a schema and shown to the student before it changes their plan.
+A model or network failure degrades to rule-based defaults (estimates by assignment type). It never
+blocks planning.

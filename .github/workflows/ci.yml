@@ -5,6 +5,25 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: studypilot
+          POSTGRES_PASSWORD: studypilot
+          POSTGRES_DB: studypilot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U studypilot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://studypilot:studypilot@localhost:5432/studypilot_test
+      DATABASE_URL_TEST: postgresql://studypilot:studypilot@localhost:5432/studypilot_test
+      DATABASE_URL_E2E: postgresql://studypilot:studypilot@localhost:5432/studypilot_e2e
+      BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -12,6 +31,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: PGPASSWORD=studypilot psql -h localhost -U studypilot -d studypilot_test -c "CREATE DATABASE studypilot_e2e"
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
