@@ -22,6 +22,7 @@ export default defineConfig({
     env: {
       DATABASE_URL: databaseUrl,
       BETTER_AUTH_URL: baseURL,
+      AUTH_RATE_LIMIT: "off", // tests create many accounts from one address
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "e2e-only-secret-0123456789abcdef0123456789",
     },
   },

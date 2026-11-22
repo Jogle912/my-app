@@ -18,8 +18,10 @@
     "db:deploy": "prisma migrate deploy"
   },
   "dependencies": {
+    "@better-auth/expo": "^1.7.27",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
+    "@studypilot/scheduler": "*",
     "better-auth": "^1.7.27",
     "luxon": "^3.7.2",
     "next": "16.4.6",
@@ -27,8 +29,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
-    "zod": "^4.6.7",
-    "@studypilot/scheduler": "*"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

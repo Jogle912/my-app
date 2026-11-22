@@ -40,7 +40,7 @@ export const assignmentInput = z.object({
   title: z.string().trim().min(1, "Title is required").max(200),
   description: optionalText(5000),
   kind: z.enum(ASSIGNMENT_KINDS).default("HOMEWORK"),
-  dueAt: z.date(),
+  dueAt: z.coerce.date({ error: "Enter a valid due date" }),
   estimatedMinutes: z.coerce.number().int().min(5).max(6000).optional(),
   priority: z.coerce.number().int().min(1).max(5).default(3),
 });
@@ -71,8 +71,8 @@ export type AvailabilityInput = z.infer<typeof availabilityInput>;
 export const eventInput = z
   .object({
     title: z.string().trim().min(1).max(120),
-    startAt: z.date(),
-    endAt: z.date(),
+    startAt: z.coerce.date({ error: "Enter a valid start" }),
+    endAt: z.coerce.date({ error: "Enter a valid end" }),
   })
   .refine((e) => e.endAt > e.startAt, { message: "End must be after start", path: ["endAt"] });
 
